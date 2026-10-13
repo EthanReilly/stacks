@@ -34,13 +34,17 @@ jobs:
         env:
           STACKS_SIGNING: ${{ secrets.STACKS_SIGNING }}
         run: |
-          if [ -z "$STACKS_SIGNING" ]; then
-            echo "::error title=Signing key missing::Add the STACKS_SIGNING secret in Settings > Secrets and variables > Actions, then run this workflow again."
-            exit 1
-          fi
-          pw="${STACKS_SIGNING%%:*}"
+          exec > >(tee -a "$RUNNER_TEMP/build.log") 2>&1
+          fail() { echo "::error title=Signing key::$1"; exit 1; }
+          [ -n "$STACKS_SIGNING" ] || fail "The STACKS_SIGNING secret is missing. Add it in Settings > Secrets and variables > Actions."
+          # tolerate spaces or line breaks picked up while pasting
+          raw="$(printf '%s' "$STACKS_SIGNING" | tr -d ' \r\n\t')"
+          pw="${raw%%:*}"; b64="${raw#*:}"
+          [ "$pw" != "$raw" ] || fail "The secret should be one line: password, a colon, then the key. Paste the whole STACKS_SIGNING.txt file."
           echo "::add-mask::$pw"
-          printf '%s' "${STACKS_SIGNING#*:}" | base64 -d > "$RUNNER_TEMP/stacks.jks"
+          printf '%s' "$b64" | base64 -d > "$RUNNER_TEMP/stacks.jks" 2>/dev/null || fail "The key part of the secret isn't valid. Paste the whole STACKS_SIGNING.txt file again."
+          keytool -list -keystore "$RUNNER_TEMP/stacks.jks" -storepass "$pw" -alias stacks >/dev/null 2>&1 || fail "The key doesn't open with its password. Paste the whole STACKS_SIGNING.txt file again."
+          echo "Signing key OK ($(wc -c < "$RUNNER_TEMP/stacks.jks") bytes)"
           {
             echo "STACKS_KEYSTORE_PATH=$RUNNER_TEMP/stacks.jks"
             echo "STACKS_KEYSTORE_PASSWORD=$pw"
@@ -53,6 +57,7 @@ jobs:
 
       - name: Build the app page
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/build.log") 2>&1
           npm ci
           npm run build
           npx cap sync android
@@ -60,15 +65,25 @@ jobs:
       - name: Build and sign the APK
         working-directory: android
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/build.log") 2>&1
           chmod +x gradlew
           ./gradlew assembleRelease -PversionCode=${{ github.run_number }} -PversionName="$APP_VERSION" --no-daemon --stacktrace
 
       - name: Check the signature
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/build.log") 2>&1
           APK=android/app/build/outputs/apk/release/app-release.apk
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$BT/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
           cp "$APK" stacks.apk
+
+      - name: Report the error
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/build.log" ] || exit 0
+          tail -n 60 "$RUNNER_TEMP/build.log" | grep -v "^\s*$" | tail -n 40 > "$RUNNER_TEMP/tail.txt"
+          msg=$(sed -e 's/%/%25/g' -e 's/\r/%0D/g' "$RUNNER_TEMP/tail.txt" | awk 'BEGIN{ORS="%0A"}{print}')
+          echo "::error title=Build log (last lines)::$msg"
 
       - uses: actions/upload-artifact@v5
         with:
