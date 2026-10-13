@@ -71,10 +71,15 @@ jobs:
 
       - name: Check the signature
         run: |
-          exec > >(tee -a "$RUNNER_TEMP/build.log") 2>&1
-          APK=android/app/build/outputs/apk/release/app-release.apk
+          OUT=android/app/build/outputs/apk/release
+          FILES=$(ls "$OUT" 2>&1 | tr '\n' ' ')
+          APK=$(ls "$OUT"/*.apk 2>/dev/null | head -1)
+          [ -n "$APK" ] || { echo "::error title=No APK::Nothing in $OUT: $FILES"; exit 1; }
+          case "$APK" in *unsigned*) echo "::error title=APK not signed::Gradle built $FILES without the signing key"; exit 1;; esac
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          "$BT/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          CERT=$("$BT/apksigner" verify --print-certs "$APK" 2>&1) || { echo "::error title=Signature check failed::$(echo "$CERT" | head -3 | tr '\n' ' ')"; exit 1; }
+          echo "$CERT" | head -3
+          echo "::notice title=Signed::$(echo "$CERT" | grep -m1 SHA-256)"
           cp "$APK" stacks.apk
 
       - name: Report the error
