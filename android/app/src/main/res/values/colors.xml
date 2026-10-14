@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Match the app's page background so there's no flash on launch -->
+    <color name="stacks_bg">#F3F5F4</color>
+    <color name="stacks_accent">#1E5D54</color>
+    <color name="colorPrimary">#1E5D54</color>
+    <color name="colorPrimaryDark">#1E5D54</color>
+    <color name="colorAccent">#1E5D54</color>
+</resources>

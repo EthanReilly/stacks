@@ -1,0 +1,18 @@
+{
+  "appId": "com.ethanreilly.stacks",
+  "appName": "Stacks",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "disable",
+      "style": "DEFAULT"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_stacks",
+      "iconColor": "#1E5D54"
+    }
+  }
+}
