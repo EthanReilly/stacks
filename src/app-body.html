@@ -2126,6 +2126,15 @@ select.input { appearance: auto; padding-inline: 12px; }
     NATIVE.notifications.setup(onNotifAction);
     NATIVE.notifications.status().then(s => { notifState = s; if (state.view.name === 'rem') render(); syncNotifications(); });
     NATIVE.onBack(onAndroidBack);
+    /* when the keyboard opens the page gets shorter: keep the field being typed in on screen */
+    let kbTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(kbTimer);
+      kbTimer = setTimeout(() => {
+        const el = document.activeElement;
+        if (el && /^(INPUT|TEXTAREA)$/.test(el.tagName) && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+      }, 120);
+    });
     NATIVE.onPause(() => { for (const id in dirty) if (dirty[id]) { dirty[id] = false; saveNote(id); } if (fileTimer) flushFile(); });
     NATIVE.onResume(() => { checkLock(); if (state.view.name === 'rem' || state.view.name === 'today') render(); syncNotifications(); });
     /* links to websites open in the phone's browser */

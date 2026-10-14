@@ -3,13 +3,11 @@
   "appName": "Stacks",
   "webDir": "www",
   "android": {
-    "allowMixedContent": false,
-    "backgroundColor": "#F3F5F4"
+    "allowMixedContent": false
   },
   "plugins": {
     "SystemBars": {
-      "insetsHandling": "css",
-      "initialViewportFitValueHint": "cover",
+      "insetsHandling": "disable",
       "style": "DEFAULT"
     },
     "LocalNotifications": {
